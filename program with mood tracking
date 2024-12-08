@@ -1,0 +1,251 @@
+import tkinter as tk
+from tkinter import messagebox
+import hashlib
+
+
+# Function to hash the password (to store it securely)
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+# Function to verify the entered password
+def verify_password():
+    entered_password = password_entry.get()
+    if hash_password(entered_password) == correct_password:
+        password_window.destroy()  # Close the password window
+        main_window.deiconify()  # Show the main window
+    else:
+        messagebox.showerror("Error", "Incorrect password. Please try again.")
+
+
+# Functions
+def save_entry():
+    content = entry_box.get("1.0", tk.END).strip()
+    mood=mood_var.get()
+    if content and content != "Write your thoughts here :)":
+        with open("diary_entries.txt", "a") as file:
+            file.write("<<<Mood:" + mood +">>>\n"+ content + "\n" + "-" * 50 + "\n")
+        messagebox.showinfo("Success", "Your entry has been saved!")
+        entry_box.delete("1.0", tk.END)
+    else:
+        messagebox.showwarning("Warning", "Please write something before saving.")
+
+
+def view_entries():
+    try:
+        with open("diary_entries.txt", "r") as file:
+            entries = file.read()
+        if not entries.strip():
+            entries = "No entries found."
+    except FileNotFoundError:
+        entries = "No entries found."
+
+    view_window = tk.Toplevel(main_window)
+    view_window.title("View Entries")
+    view_window.geometry("500x400")
+    view_window.configure(bg="#ffefd5")
+
+    entries_label = tk.Label(view_window, text="Saved Entries", font=("Comic Sans MS", 16), bg="#ffefd5", fg="#4b6587")
+    entries_label.pack(pady=10)
+
+    entries_text = tk.Text(view_window, font=("Comic Sans MS", 12), wrap=tk.WORD, bd=2, padx=10, pady=10, bg="#fffaf0",
+                           fg="#2c3e50")
+    entries_text.insert("1.0", entries)
+    entries_text.configure(state="disabled")
+    entries_text.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+
+def delete_entry():
+    # Function to delete a selected entry
+    def delete_selected():
+        selected_index = listbox.curselection()
+        if not selected_index:
+            messagebox.showwarning("Warning", "Please select an entry to delete.")
+            return
+
+        confirm = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this entry?")
+        if confirm:
+            index = selected_index[0]
+            entries.pop(index)  # Remove the selected entry from the list
+
+            # Save updated entries back to the file
+            with open("diary_entries.txt", "w") as file:
+                for entry in entries:
+                    file.write(entry + "\n" + "-" * 50 + "\n")
+
+            messagebox.showinfo("Success", "The entry has been deleted.")
+            listbox.delete(index)  # Remove from the Listbox
+
+    try:
+        # Read entries from the file
+        with open("diary_entries.txt", "r") as file:
+            content = file.read()
+            entries = [entry.strip() for entry in content.split("-" * 50) if entry.strip()]
+
+        if not entries:
+            messagebox.showinfo("No Entries", "No entries found to delete.")
+            return
+    except FileNotFoundError:
+        messagebox.showinfo("No Entries", "No entries found to delete.")
+        return
+
+    # Create a window to display entries for deletion
+    delete_window = tk.Toplevel(main_window)
+    delete_window.title("Delete Entry")
+    delete_window.geometry("500x400")
+    delete_window.configure(bg="#ffefd5")
+
+    tk.Label(delete_window, text="Select an Entry to Delete", font=("Comic Sans MS", 16), bg="#ffefd5",
+             fg="#4b6587").pack(pady=10)
+
+    # Listbox to display entries
+    listbox = tk.Listbox(delete_window, font=("Comic Sans MS", 12), bg="#fffaf0", fg="#2c3e50", width=50, height=15)
+    listbox.pack(pady=10, padx=10)
+
+    # Add entries to the Listbox
+    for entry in entries:
+        listbox.insert(tk.END, entry.split("\n")[0])  # Display only the first line (e.g., title or first line of entry)
+
+    # Delete button
+    delete_button = tk.Button(
+        delete_window,
+        text="Delete Selected Entry",
+        font=("Comic Sans MS", 12),
+        bg="#ff6f61",
+        fg="white",
+        activebackground="#e63946",
+        activeforeground="white",
+        command=delete_selected,
+    )
+    delete_button.pack(pady=10)
+
+
+def clear_placeholder(event):
+    if entry_box.get("1.0", tk.END).strip() == "Write your thoughts here :)":
+        entry_box.delete("1.0", tk.END)
+
+
+def exit_app():
+    main_window.destroy()
+
+def setup_mood_tracker(parent):
+    """
+    Sets up the mood tracker dropdown menu in the given parent widget.
+    Returns the StringVar that stores the selected mood.
+    """
+    mood_var = tk.StringVar(value="Neutral")  # Default mood
+
+    mood_label = tk.Label(parent, text="Select Mood:", font=("Comic Sans MS", 14), bg="#ffefd5", fg="#4b6587")
+    mood_label.pack()
+
+    mood_menu = tk.OptionMenu(parent, mood_var, "Happy", "Sad", "Excited", "Anxious", "Neutral")
+    mood_menu.config(font=("Comic Sans MS", 12), bg="#fffaf0", fg="#2c3e50")
+    mood_menu.pack(pady=5)
+
+    return mood_var
+
+
+
+# Correct password (hashed)
+correct_password = hash_password("MyDiary")
+
+# Main window initialization (this will only show after password is verified)
+main_window = tk.Tk()
+main_window.geometry("600x600")
+main_window.configure(bg="#ffefd5")
+main_window.title("Personal Diary")
+main_window.withdraw()  # Hide the main window until password is entered
+
+#add a mood tracker
+mood_var = setup_mood_tracker(main_window) 
+
+# Password window initialization
+password_window = tk.Tk()
+password_window.geometry("400x200")
+password_window.configure(bg="#ffefd5")
+password_window.title("Enter Password")
+
+# Password entry
+password_label = tk.Label(password_window, text="Enter Password", font=("Comic Sans MS", 16), bg="#ffefd5", fg="#4b6587")
+password_label.pack(pady=20)
+
+password_entry = tk.Entry(password_window, font=("Comic Sans MS", 14), show="*", bg="#fffaf0", fg="#2c3e50")
+password_entry.pack(pady=10)
+
+# Submit button for password
+submit_button = tk.Button(
+    password_window,
+    text="Submit",
+    font=("Comic Sans MS", 14),
+    bg="#87cefa",
+    fg="#2c3e50",
+    activebackground="#4682b4",
+    activeforeground="#fff",
+    command=verify_password,
+)
+submit_button.pack(pady=10)
+
+# Main window content
+top_title = tk.Label(main_window, text="Personal Diary", font=("Comic Sans MS", 24, "bold"), bg="#ffefd5", fg="#4b6587")
+top_title.pack(pady=10)
+
+# Text area
+entry_box = tk.Text(main_window, font=("Comic Sans MS", 14), bd=2, wrap=tk.WORD, bg="#fffaf0", fg="#2c3e50", height=15)
+entry_box.insert("1.0", "Write your thoughts here :)")
+entry_box.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+entry_box.bind("<FocusIn>", clear_placeholder)
+
+# Buttons underneath text area
+button_frame = tk.Frame(main_window, bg="#ffefd5")
+button_frame.pack(pady=10,  fill=tk.X)
+
+save_button = tk.Button(
+    button_frame,
+    text="Save Entry",
+    font=("Comic Sans MS", 14),
+    bg="#87cefa",
+    fg="#2c3e50",
+    activebackground="#4682b4",
+    activeforeground="#fff",
+    command=save_entry,
+)
+save_button.pack(side=tk.LEFT, padx=5)
+
+view_button = tk.Button(
+    button_frame,
+    text="View Entries",
+    font=("Comic Sans MS", 14),
+    bg="#87cefa",
+    fg="#2c3e50",
+    activebackground="#4682b4",
+    activeforeground="#fff",
+    command=view_entries,
+)
+view_button.pack(side=tk.LEFT, padx=5)
+
+delete_button = tk.Button(
+    button_frame,
+    text="Delete Entry",
+    font=("Comic Sans MS", 14),
+    bg="#ff6f61",
+    fg="#fff",
+    activebackground="#e63946",
+    activeforeground="#fff",
+    command=delete_entry,
+)
+delete_button.pack(side=tk.LEFT, padx=5)
+
+exit_button = tk.Button(
+    button_frame,
+    text="Exit",
+    font=("Comic Sans MS", 14),
+    bg="#ff6f61",
+    fg="#fff",
+    activebackground="#e63946",
+    activeforeground="#fff",
+    command=exit_app,
+)
+exit_button.pack(side=tk.LEFT, padx=5)
+
+# Keeps the window open
+password_window.mainloop()
